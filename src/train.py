@@ -169,7 +169,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Argument parser for create dataset.')
     parser.add_argument('--dataset', default='synthetic', type=str, help='Template type.')
     parser.add_argument('--data_dir', default='../data/', type=str, help='Parent directory path for stored scenes.')
-    parser.add_argument('--param_dir', default='../params/', type=str, help='Parent directory to save model weights.')
+    parser.add_argument('--params_dir', default='../params/', type=str, help='Parent directory to save model weights.')
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--epochs', default=300, type=int, help='Number of epochs.')
     parser.add_argument('--lr', default=1e-4, type=float, help='Learning rate')
