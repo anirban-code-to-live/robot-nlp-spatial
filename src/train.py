@@ -128,7 +128,7 @@ def build_2d_model(args):
 
 
 def main(args):
-    if not os.exists(args.params_dir):
+    if not os.path.exists(args.params_dir):
         os.makedirs(args.params_dir)
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = args.log_level
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
