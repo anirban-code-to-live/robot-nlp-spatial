@@ -5,4 +5,5 @@ tmp
 params
 venv
 .idea
+data
 log
