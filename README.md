@@ -13,6 +13,7 @@ Our goal is to build a NLP-guided Robot possessing the abilities to understand n
 
 ``python train.py --batch_size <BATCH_SIZE> --epochs <NUM_EPOCHS> --lr <LEARNING_RATE``
 
+If you want to run on Blocks dataset, download the data from [this link](https://drive.google.com/drive/folders/1hhJCSd4BVrkT1ycGHupE_1OxgMyYKoIu?usp=sharing) and put them in data/blocks directory.
 
 ### Baselines: How to run
 

@@ -13,6 +13,7 @@ import sys
 sys.path.append('../')
 from config.global_config import GlobalConfig
 from src.data import get_data
+from src.block_data import make_train_dataset, make_dev_dataset, make_test_dataset
 
 
 config = GlobalConfig()
@@ -21,6 +22,19 @@ N_TOKS = config.MAX_SEQ_LEN
 global N_VOCAB
 N_EMBED = config.EMBED_SIZE
 N_OBJS = config.UNIQUE_OBJECT_COUNT
+
+P = np.array([[(i*3/W - 1.5, j*3/H - 1.5) for i in range(W)] for j in range(H)], dtype=np.float32)
+def AtoI(As):
+    Is = []
+    for i in range(As.shape[0]):
+        img = np.zeros((H, W, 3+N_OBJS), dtype=np.float32)
+        img[:, :, :2] = P
+        for j in range(20):
+            x, y = As[i][j]
+            px, py = int((1.5 + x)*W/3.), int((1.5 + y)*H/3.)
+            img[py, px, 3:] = np.eye(20)[j]
+        Is.append(img)
+    return np.array(Is)
 
 
 def unet(xt):
@@ -133,11 +147,19 @@ def main(args):
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = args.log_level
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
-    global N_VOCAB
-    train_data, val_data, test_data, N_VOCAB = get_data(args)
-    Ss, Ts, Xs, Ys = train_data['Is'], train_data['Ts'], train_data['Xs'], train_data['Ys']
-    dSs, dTs, dXs, dYs = val_data['Is'], val_data['Ts'], val_data['Xs'], val_data['Ys']
-    tSs, tTs, tXs, tYs = test_data['Is'], test_data['Ts'], test_data['Xs'], test_data['Ys']
+    if args.dataset == 'synthetic':
+        global N_VOCAB
+        train_data, val_data, test_data, N_VOCAB = get_data(args)
+        Ss, Ts, Xs, Ys = train_data['Is'], train_data['Ts'], train_data['Xs'], train_data['Ys']
+        dSs, dTs, dXs, dYs = val_data['Is'], val_data['Ts'], val_data['Xs'], val_data['Ys']
+        tSs, tTs, tXs, tYs = test_data['Is'], test_data['Ts'], test_data['Xs'], test_data['Ys']
+    else:
+        Ss, Ts, Vs, Is, As, Ys, Yis = make_train_dataset()
+        dSs, dTs, dVs, dIs, dAs, dYs, dYis = make_dev_dataset()
+        tSs, tTs, tVs, tIs, tAs, tYs, tYis = make_dev_dataset()
+        Xs = AtoI(As)
+        dXs = AtoI(dAs)
+        tXs = AtoI(tAs)
 
     print('*' * 80)
     print('Train samples: {} | Validation samples: {} | Test samples: {}'.format(len(Ss), len(dSs), len(tSs)))
