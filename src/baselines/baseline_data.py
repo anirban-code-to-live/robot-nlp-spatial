@@ -92,15 +92,14 @@ def make_dataset(scenes, feats, args):
 
 
 def get_scene_data(args, type):
-    scene_path = os.path.join(args.scene_dir, args.template, args.action + '_' + args.target + '_' + type + '_scenes.json')
+    scene_path = os.path.join(args.data_dir, args.dataset, type + '_scenes.json')
     with open(scene_path, 'r') as f:
         scenes = json.load(f)['scenes']
     return scenes
 
 
 def get_image_data(args, type):
-    feat_path = os.path.join(args.scene_dir, args.template,
-                             args.action + '_' + args.target + '_' + args.model + '_' + type + '_feat.pkl')
+    feat_path = os.path.join(args.data_dir, args.dataset, args.model + '_' + type + '_feat.pkl')
     with open(feat_path, 'rb') as f:
         feats = pickle.load(f)
     return feats

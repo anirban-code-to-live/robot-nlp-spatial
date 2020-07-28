@@ -15,19 +15,13 @@ def get_mse_abd_ta(p, t, blk_len=0.166, tol=0.05):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Argument parser for create dataset.')
-    parser.add_argument('--template', default='SP_SO_REL_SOR', type=str, help='Template type.')
-    parser.add_argument('--action', default='pick', type=str, help='Action type. pick or pick_and_place')
-    parser.add_argument('--target', default='single', type=str, help='Target type. single or multi.')
-    parser.add_argument('--image_dir', default='../../data/images/', type=str, help='Parent directory path for stored images.')
-    parser.add_argument('--scene_dir', default='../../data/scenes/', type=str, help='Parent directory path for stored scenes.')
-    parser.add_argument('--model', default='lstm', type=str, help='Model: lstm/cnn/sa')
-    parser.add_argument('--train_fraction', default=0.8, type=float, help='Fraction of total data to be used for training.')
-    parser.add_argument('--batch_size', default=4, type=int, help='Batch size.')
+    parser.add_argument('--dataset', default='synthetic', type=str, help='Template type.')
+    parser.add_argument('--data_dir', default='../../data/', type=str, help='Parent directory path for stored scenes.')
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-    print('Baseline for blocks world - Center Target locations!')
+    print('Baseline for synthetic world - Center Target locations!')
     args = parse_args()
     #######################################
     # Test data

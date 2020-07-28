@@ -41,7 +41,7 @@ class EmbeddingLayer(nn.Module):
         return x
 
 
-class BiLSTMNet(nn.Module):
+class LSTMNet(nn.Module):
     """
 
     Parameters
@@ -57,106 +57,32 @@ class BiLSTMNet(nn.Module):
 
     Returns
     --------
-    f_out: # (seq_len, batch_size, out_dim)
-    b_out: # (seq_len, batch_size, out_dim)
-    fh_n: # (batch_size, out_dim)
-    bh_n: # (batch_size, out_dim)
+    h_n: # (batch_size, out_dim)
 
     """
 
-    def __init__(self, embed_dim, out_dim, num_layers=2):
-        super(BiLSTMNet, self).__init__()
+    def __init__(self, embed_dim, out_dim, num_layers=1):
+        super(LSTMNet, self).__init__()
         self.num_layers = num_layers
         self.out_dim = out_dim
-        self.lstm = nn.LSTM(embed_dim, out_dim, num_layers, bidirectional=True)
+        self.lstm = nn.LSTM(embed_dim, out_dim, num_layers, dropout=0.5)
 
     def forward(self, x):
         # Set initial values for hidden and cell states
-        h_0 = torch.zeros(self.num_layers * 2, x.size(1), self.out_dim).to(
-            device)  # (2*num_layers, batch_size, out_dim)
-        c_0 = torch.zeros(self.num_layers * 2, x.size(1), self.out_dim).to(
-            device)  # (2*num_layers, batch_size, out_dim)
-        #         h_0, c_0 = hc # (2*num_layers, batch_size, out_dim)
+        h_0 = torch.zeros(self.num_layers, x.size(1), self.out_dim).to(
+            device)  # (num_layers, batch_size, out_dim)
+        c_0 = torch.zeros(self.num_layers, x.size(1), self.out_dim).to(
+            device)  # (num_layers, batch_size, out_dim)
+        #         h_0, c_0 = hc # (num_layers, batch_size, out_dim)
 
         # Forward propagate to LSTM
         out, (h_n, c_n) = self.lstm(x, (h_0, c_0))
-        # h_n, c_n: # (2*num_layers, batch_size, out_dim)
-        # out: # (seq_len, batch_size, 2*out_dim)
+        # h_n, c_n: # (num_layers, batch_size, out_dim)
+        # out: # (seq_len, batch_size, out_dim)
 
-        out = out.view(x.size(0), x.size(1), 2, self.out_dim)  # (seq_len, batch_size, 2, out_dim)
-        f_out = out[:, :, 0, :]  # (seq_len, batch_size, out_dim)
-        b_out = out[:, :, 1, :]  # (seq_len, batch_size, out_dim)
-        h_n = h_n.view(self.num_layers, 2, x.size(1), self.out_dim)  # (num_layers, 2, batch_size, out_dim)
-        fh_n = h_n[-1, 0, :, :]  # (batch_size, out_dim)
-        bh_n = h_n[-1, 1, :, :]  # (batch_size, out_dim)
+        h_n = h_n[-1, :, :]  # (batch_size, out_dim)
 
-        return f_out, b_out, fh_n, bh_n
-
-
-class AttentionNet(nn.Module):
-    """
-
-    Parameters
-    -------------
-    emb_dim: Dimension of input(hidden and encoder vectors)
-
-    Inputs
-    -------
-    hidden: tuple of (forward, backward) hidden vecs # (batch_size, emb_dim)
-    enc_outs: tuple of (forward, backward) encoder outs # (batch_size, seq_len, emb_dim)
-
-    Returns
-    --------
-    atn_out: Attention encoder output # (batch_size, 2*emb_dim)
-
-    """
-
-    def __init__(self, emb_dim, method='dot'):
-        super(AttentionNet, self).__init__()
-        self.method = method
-        if self.method not in ['dot', 'general', 'concat']:
-            raise ValueError(self.method, 'is not an appropriate method')
-        if self.method == 'general':
-            self.attn = torch.nn.Linear(emb_dim, emb_dim)
-        elif self.method == 'concat':
-            self.attn = nn.Linear(2 * emb_dim, emb_dim)
-            self.v = nn.Parameter(torch.FloatTensor(emb_dim))
-
-    def dot_score(self, hidden, enc_outs):
-        attn_energies = torch.bmm(enc_outs, hidden.unsqueeze(2)).squeeze(2)  # (batch_size, seq_len)
-        return attn_energies
-
-    def general_score(self, hidden, enc_outs):
-        enc_outs = self.attn(enc_outs)  # (batch_size, seq_len, emb_dim)
-        attn_energies = torch.bmm(enc_outs, hidden.unsqueeze(2)).squeeze(2)  # (batch_size, seq_len)
-        return attn_energies
-
-    def concat_score(self, hidden, enc_outs):
-        hidden = hidden.expand(enc_outs.size(1), -1, -1).permute(1, 0, 2)  # (batch_size, seq_len, emb_dim)
-        enc_outs = torch.cat((enc_outs, hidden), 2)  # (batch_size, seq_len, 2*emb_dim)
-        enc_outs = self.attn(enc_outs).tanh()  # (batch_size, seq_len, emb_dim)
-        v = self.v.expand(enc_outs.size(0), -1)  # (batch_size, emb_dim)
-        attn_energies = torch.bmm(enc_outs, v.unsqueeze(2)).squeeze(2)  # (batch_size, seq_len)
-        return attn_energies
-
-    def attention_net(self, hidden, enc_outs):
-        if self.method == 'dot':
-            attn_energies = self.dot_score(hidden, enc_outs)
-        elif self.method == 'general':
-            attn_energies = self.general_score(hidden, enc_outs)
-        elif self.method == 'concat':
-            attn_energies = self.concat_score(hidden, enc_outs)
-        attn_energies = nn.functional.softmax(attn_energies, dim=1)  # (batch_size, seq_len)
-        attn_out = torch.bmm(enc_outs.transpose(1, 2), attn_energies.unsqueeze(2)).squeeze(2)  # (batch_size, emb_dim)
-        return attn_out
-
-    def forward(self, hidden, enc_outs):
-        f_h, b_h = hidden
-        f_enc, b_enc = enc_outs
-        atnf_out = self.attention_net(f_h, f_enc)  # (batch_size, emb_dim)
-        atnb_out = self.attention_net(b_h, b_enc)  # (batch_size, emb_dim)
-        atn_out = torch.cat((atnf_out, atnb_out), dim=1)  # (batch_size, 2*emb_dim)
-        return atn_out
+        return h_n
 
 
 class AnchorNet(nn.Module):
@@ -170,7 +96,7 @@ class AnchorNet(nn.Module):
     Inputs
     -------
     x: # (batch_size, out_dim, 2)
-    attn_out: # (batch_size, in_dim)
+    hidden: # (batch_size, in_dim)
 
     Returns
     --------
@@ -185,10 +111,10 @@ class AnchorNet(nn.Module):
             nn.Softmax(dim=1)
         )
 
-    def forward(self, x, attn_out):
-        attn_out = self.fc(attn_out)  # (batch_size, out_dim)
-        attn_out = attn_out.unsqueeze(2).permute(0, 2, 1)  # (batch_size, 1, out_dim)
-        out = torch.bmm(attn_out, x).squeeze(1)  # (batch_size, 2)
+    def forward(self, x, hidden):
+        hidden = self.fc(hidden)  # (batch_size, out_dim)
+        hidden = hidden.unsqueeze(1)  # (batch_size, 1, out_dim)
+        out = torch.bmm(hidden, x).squeeze(1)  # (batch_size, 2)
         return out
 
 
@@ -202,7 +128,7 @@ class OffsetNet(nn.Module):
     Inputs
     -------
     off_x: # (batch_size, 1, 1)
-    attn_out: # (batch_size, in_dim)
+    hidden: # (batch_size, in_dim)
 
     Returns
     --------
@@ -221,28 +147,29 @@ class OffsetNet(nn.Module):
             [T, -T],
             [T, 0.],
             [T, T],
+            [0, 0]
 
         ], dtype=np.float32)
-        weight = np.reshape(weight, (16, -1))
+        weight = np.reshape(weight, (18, -1))
         self.linear.weight.data = torch.tensor(weight, dtype=torch.float32)
 
     def __init__(self, in_dim):
         super(OffsetNet, self).__init__()
         self.fc = nn.Sequential(
-            nn.Linear(in_dim, 8),
+            nn.Linear(in_dim, 9),
             nn.Softmax(dim=1)
         )
 
-        self.linear = nn.Linear(1, 16, bias=False)
+        self.linear = nn.Linear(1, 18, bias=False)
         self.init_weight()
         self.linear.weight.requires_grad = False
 
-    def forward(self, off_x, attn_out):
-        attn_out = self.fc(attn_out)  # (batch_size, 8)
-        attn_out = attn_out.unsqueeze(2).permute(0, 2, 1)  # (batch_size, 1, 8)
-        off_x = self.linear(off_x)  # (batch_size, 1, 16)
-        off_x = torch.reshape(off_x, (off_x.size(0), 8, 2))  # (batch_size, 8, 2)
-        out = torch.bmm(attn_out, off_x).squeeze(1)  # (batch_size, 2)
+    def forward(self, off_x, hidden):
+        hidden = self.fc(hidden)  # (batch_size, 9)
+        hidden = hidden.unsqueeze(1)  # (batch_size, 1, 9)
+        off_x = self.linear(off_x)  # (batch_size, 1, 18)
+        off_x = torch.reshape(off_x, (off_x.size(0), 9, 2))  # (batch_size, 9, 2)
+        out = torch.bmm(hidden, off_x).squeeze(1)  # (batch_size, 2)
         return out
 
 
@@ -255,7 +182,7 @@ class Model(nn.Module):
     out_dim: Bi-LSTM and Attention Network output dimension
     anc_dim: Output dimension of FC layer in Anchor Network
     vocab_size: Count of words in vocabulary
-    weight_mat: GloVe embeddings # (vocab_size, 300)
+    weight_mat: Uniformly random matrix # (vocab_size, 256)
     pad_idx: Padding token index
 
     Inputs
@@ -272,35 +199,22 @@ class Model(nn.Module):
     def __init__(self, emb_dim, out_dim, anc_dim, vocab_size, weight_mat, pad_idx=0):
         super(Model, self).__init__()
         self.embed_layer = EmbeddingLayer(emb_dim, vocab_size, weight_mat, pad_idx)
-        self.s_bilstm = BiLSTMNet(emb_dim, out_dim)
-        self.t_bilstm = BiLSTMNet(emb_dim, out_dim)
-        self.o_bilstm = BiLSTMNet(emb_dim, out_dim)
-        self.s_attn_net = AttentionNet(out_dim)
-        self.t_attn_net = AttentionNet(out_dim)
-        self.o_attn_net = AttentionNet(out_dim)
-        self.s_anchor_net = AnchorNet(2 * out_dim, anc_dim)
-        self.t_anchor_net = AnchorNet(2 * out_dim, anc_dim)
-        self.t_offset_net = OffsetNet(2 * out_dim)
+        self.s_lstm = LSTMNet(emb_dim, out_dim)
+        self.t_lstm = LSTMNet(emb_dim, out_dim)
+        self.o_lstm = LSTMNet(emb_dim, out_dim)
+        self.s_anchor_net = AnchorNet(out_dim, anc_dim)
+        self.t_anchor_net = AnchorNet(out_dim, anc_dim)
+        self.t_offset_net = OffsetNet(out_dim)
 
     def forward(self, s, x):
         e = self.embed_layer(s)  # (seq_len, batch_size, emb_dim)
-        fs_out, bs_out, fs_h, bs_h = self.s_bilstm(e)
-        ft_out, bt_out, ft_h, bt_h = self.t_bilstm(e)
-        fo_out, bo_out, fo_h, bo_h = self.o_bilstm(e)
-        # Shapes of fs_out, bs_out, ft_out, bt_out: # (seq_len, batch_size, out_dim)
-        # Shapes of fs_h, bs_h, ft_h, bt_h: # (batch_size, out_dim)
-        fs_out, bs_out = fs_out.permute(1, 0, 2), bs_out.permute(1, 0, 2)
-        ft_out, bt_out = ft_out.permute(1, 0, 2), bt_out.permute(1, 0, 2)
-        fo_out, bo_out = fo_out.permute(1, 0, 2), bo_out.permute(1, 0, 2)
-        # Shapes of fs_out, bs_out, ft_out, bt_out: # (batch_size, seq_len, out_dim)
-        s_hidden, t_hidden, o_hidden = (fs_h, bs_h), (ft_h, bt_h), (fo_h, bo_h)
-        s_enc_outs, t_enc_outs, o_enc_outs = (fs_out, bs_out), (ft_out, bt_out), (fo_out, bo_out)
-        s_attn_out = self.s_attn_net(s_hidden, s_enc_outs)  # (batch_size, 2*out_dim)
-        t_attn_out = self.t_attn_net(t_hidden, t_enc_outs)  # (batch_size, 2*out_dim)
-        o_attn_out = self.o_attn_net(o_hidden, o_enc_outs)  # (batch_size, 2*out_dim)
-        s_out = self.s_anchor_net(x[:, :25, :], s_attn_out)  # (batch_size, 2)
-        t_anc_out = self.t_anchor_net(x[:, :25, :], t_attn_out)  # (batch_size, 2)
-        t_off_out = self.t_offset_net(x[:, 25, 0:1], o_attn_out)  # (batch_size, 2)
+        s_h = self.s_lstm(e)
+        t_h = self.t_lstm(e)
+        o_h = self.o_lstm(e)
+        # Shapes of s_h, t_h, o_h: # (batch_size, out_dim)
+        s_out = self.s_anchor_net(x[:, :25, :], s_h)  # (batch_size, 2)
+        t_anc_out = self.t_anchor_net(x[:, :25, :], t_h)  # (batch_size, 2)
+        t_off_out = self.t_offset_net(x[:, 25, 0:1], o_h)  # (batch_size, 2)
         t_out = t_anc_out + t_off_out  # (batch_size, 2)
         out = torch.cat((s_out, t_out), dim=1)  # (batch_size, 4)
         return out
@@ -414,7 +328,8 @@ def evaluate(model, criterion, dev_loader, end_of_epoch, start_time):
 
         loss = np.mean(total_loss)
         acc = torch.sum(torch.tensor(accs)).item() / total
-        avg_blk_dis = torch.sum(torch.tensor(ds)).item() / (total * 0.166)
+        # avg_blk_dis = torch.sum(torch.tensor(ds)).item() / (total * 0.166)
+        avg_blk_dis = 0
 
         logger.info('-' * 120)
         logger.info(
@@ -476,15 +391,11 @@ def save_model(model, optimiser, val_acc, val_loss, model_name, model_dir, save_
 #######################################
 def parse_args():
     parser = argparse.ArgumentParser(description='Arguments for blocks-nlp')
-    parser.add_argument('--name', default='blocks-nlp', help='Set run name for saving/restoring the files')
+    parser.add_argument('--name', default='robots-nlp-spatial', help='Set run name for saving/restoring the files')
+    parser.add_argument('--dataset', default='synthetic', type=str, help='Template type.')
+    parser.add_argument('--data_dir', default='../../data/', type=str, help='Parent directory path for stored scenes.')
+    parser.add_argument('--params_dir', default='../params/', type=str, help='Parent directory to save model weights.')
 
-    parser.add_argument('--template', default='SP_SO_ABS', type=str, help='Template type.')
-    parser.add_argument('--action', default='pick', type=str, help='Action type. pick or pick_and_place')
-    parser.add_argument('--target', default='single', type=str, help='Target type. single or multi.')
-    parser.add_argument('--image_dir', default='../../data/images/', type=str,
-                        help='Parent directory path for stored images.')
-    parser.add_argument('--scene_dir', default='../../data/scenes/', type=str,
-                        help='Parent directory path for stored scenes.')
     parser.add_argument('--model', default='lstm', type=str, help='Model: lstm/cnn/sa')
     parser.add_argument('--batch_size', default=4, type=int, help='Batch size.')
 

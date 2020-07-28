@@ -8,8 +8,6 @@ import tensorflow.keras.backend as tfkb
 import tensorflow.keras.regularizers as tfkr
 from tensorflow.keras.layers import Conv2D, BatchNormalization, Conv2DTranspose
 from tensorflow.keras.models import Sequential
-from PIL import Image, ImageDraw
-import glob
 import sys
 sys.path.append('../../')
 from config.global_config import GlobalConfig
@@ -23,26 +21,6 @@ global N_VOCAB
 N_EMBED = config.EMBED_SIZE
 N_OBJS = config.UNIQUE_OBJECT_COUNT
 MAX_OBJS = config.MAX_SCENE_OBJECT_COUNT
-
-# W, H = 93, 93
-# OBJS = ['apple', 'banana', 'cucumber', 'orange', 'pineapple']
-OBJ_IMGS = [Image.open(fn).resize((8, 8)) for fn in sorted(glob.glob('../emojis/*.png'))]
-# N_TOKS = 16
-# N_VOCAB = 32
-# N_EMBED = 12
-
-
-def visualize(X):
-    img = Image.new('RGB', (W, H), color=(0, 0, 0))
-    draw = ImageDraw.Draw(img, 'RGBA')
-    ew, eh = OBJ_IMGS[0].size
-    ys, xs = np.where(X[:, :, 0] != 0)
-    for x, y in zip(xs, ys):
-        x, y = int(x), int(y)
-        idx, = np.where(X[y, x, 2:] != 0)
-        idx = int(idx)
-        img.paste(OBJ_IMGS[idx], box=(x - ew // 2, y - eh // 2, x + ew // 2, y + eh // 2))
-    return img
 
 
 def fcnet(xt):
@@ -155,10 +133,6 @@ def main(args):
     # print(Ts.shape, Xs.shape, Ys.shape)
     print('*' * 80)
 
-    # print(Ss[0], Ys[0])
-    # img = visualize(Xs[0])
-    # img.save('../tmp/vis.png')
-
     model = build_1d_model(args)
     param_fpath = '../../params/params_fc' + str(args.run) + '.h5'
     os.system('rm ' + param_fpath)
@@ -182,11 +156,9 @@ def main(args):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Argument parser for create dataset.')
-    parser.add_argument('--template', default='SP_SO_REL_SOR', type=str, help='Template type.')
-    parser.add_argument('--action', default='pick', type=str, help='Action type. pick or pick_and_place')
-    parser.add_argument('--target', default='single', type=str, help='Target type. single or multi.')
-    parser.add_argument('--image_dir', default='../../data/images/', type=str, help='Parent directory path for stored images.')
-    parser.add_argument('--scene_dir', default='../../data/scenes/', type=str, help='Parent directory path for stored scenes.')
+    parser.add_argument('--dataset', default='synthetic', type=str, help='Template type.')
+    parser.add_argument('--data_dir', default='../../data/', type=str, help='Parent directory path for stored scenes.')
+    parser.add_argument('--params_dir', default='../params/', type=str, help='Parent directory to save model weights.')
     parser.add_argument('--batch_size', default=16, type=int, help='Batch size')
     parser.add_argument('--epochs', default=1, type=int, help='Number of epochs.')
     parser.add_argument('--lr', default=1e-4, type=float, help='Learning rate')

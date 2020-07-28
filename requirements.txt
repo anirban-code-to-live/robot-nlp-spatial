@@ -1,2 +1,4 @@
 tensorflow==1.14.0
 tensorflow-gpu==1.14.0
+torch==1.5.1+cu101
+torchvision==0.6.1+cu101

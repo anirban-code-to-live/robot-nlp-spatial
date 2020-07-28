@@ -194,15 +194,9 @@ def parse_args():
     parser.add_argument('--fast', default=False, action='store_true', help='Subset of data for faster training.')
     parser.add_argument('--print_every', default=1, type=int, help='Print training progress at interval of epcohs.')
 
-    parser.add_argument('--template', default='SP_SO_REL_SOR', type=str, help='Template type.')
-    parser.add_argument('--action', default='pick', type=str, help='Action type. pick or pick_and_place')
-    parser.add_argument('--target', default='single', type=str, help='Target type. single or multi.')
-    parser.add_argument('--image_dir', default='../../data/images/', type=str,
-                        help='Parent directory path for stored images.')
-    parser.add_argument('--scene_dir', default='../../data/scenes/', type=str,
-                        help='Parent directory path for stored scenes.')
-    parser.add_argument('--train_fraction', default=0.8, type=float,
-                        help='Fraction of total data to be used for training.')
+    parser.add_argument('--dataset', default='synthetic', type=str, help='Template type.')
+    parser.add_argument('--data_dir', default='../../data/', type=str, help='Parent directory path for stored scenes.')
+    parser.add_argument('--params_dir', default='../params/', type=str, help='Parent directory to save model weights.')
     parser.add_argument('--gpu', default='0', type=str, help='Set GPU to use.')
     parser.add_argument('--log_level', default='3', type=str, help='Set log level for tensorflow.')
     parser.add_argument('--run', default=1, type=int,
