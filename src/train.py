@@ -154,9 +154,9 @@ def main(args):
         dSs, dTs, dXs, dYs = val_data['Is'], val_data['Ts'], val_data['Xs'], val_data['Ys']
         tSs, tTs, tXs, tYs = test_data['Is'], test_data['Ts'], test_data['Xs'], test_data['Ys']
     else:
-        Ss, Ts, Vs, Is, As, Ys, Yis = make_train_dataset()
-        dSs, dTs, dVs, dIs, dAs, dYs, dYis = make_dev_dataset()
-        tSs, tTs, tVs, tIs, tAs, tYs, tYis = make_dev_dataset()
+        Ss, Ts, Is, As, Ys, Yis = make_train_dataset()
+        dSs, dTs, dIs, dAs, dYs, dYis = make_dev_dataset()
+        tSs, tTs, tIs, tAs, tYs, tYis = make_dev_dataset()
         Xs = AtoI(As)
         dXs = AtoI(dAs)
         tXs = AtoI(tAs)

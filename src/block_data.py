@@ -4,7 +4,6 @@ import re
 from PIL import Image, ImageDraw
 import os
 import itertools
-import spacy
 
 nlp = None
 
@@ -88,26 +87,8 @@ def sent_to_idxs(sent, vocab_fn='vocab_digit'):
     return idxs
 
 
-def sent_to_vecs(sent):
-    global nlp
-    if nlp is None:
-        nlp = spacy.load("en_core_web_md")
-    vecs = []
-    for token in nlp(sent):
-        if token.has_vector:
-            vecs.append(token.vector)
-        else:
-            vecs.append(np.zeros((300,)))
-
-    vecs = vecs[:SENT_N_TOKENS]
-    if len(vecs) < SENT_N_TOKENS:
-        vecs += [np.zeros((300,))] * (SENT_N_TOKENS - len(vecs))
-
-    return np.array(vecs)
-
-
 def make_dataset(fn='trainset.json', vocab_fn='vocab_digit'):
-    Ss, Ts, Vs, Xs, As, Ys, Yis = [], [], [], [], [], [], []
+    Ss, Ts, Xs, As, Ys, Yis = [], [], [], [], [], []
 
     data = json.load(open(fn))
 
@@ -133,11 +114,9 @@ def make_dataset(fn='trainset.json', vocab_fn='vocab_digit'):
 
                 for sent in sents:
                     sent_idxs = sent_to_idxs(sent, vocab_fn=vocab_fn)
-                    sent_vecs = sent_to_vecs(sent)
                     if not sent_idxs: continue
                     Ss.append(sent.lower())
                     Ts.append(sent_idxs)
-                    Vs.append(sent_vecs)
                     As.append(np_state_pos)
                     Xs.append(np_img_states[start])
                     Ys.append(np.array([xs, ys, xf, yf]))
@@ -145,13 +124,12 @@ def make_dataset(fn='trainset.json', vocab_fn='vocab_digit'):
 
     Ss = np.array(Ss, dtype=object)[:, None]
     Ts = np.array(Ts)
-    Vs = np.array(Vs)
     Xs = np.array(Xs)
     As = np.array(As)
     Ys = np.array(Ys)
     Yis = np.array(Yis)
 
-    return Ss, Ts, Vs, Xs, As, Ys, Yis
+    return Ss, Ts, Xs, As, Ys, Yis
 
 
 def make_train_dataset():
